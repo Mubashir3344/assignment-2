@@ -1,188 +1,173 @@
 # Part II Report: Containerized Automation Pipeline with Jenkins (AWS EC2)
 
-## 1. Objective
+## 1. Project Objective
 
-The objective of Part II was to configure Jenkins on AWS EC2 and automate the build phase of the same web application used in Part I.
+For Part II, the objective was to automate the build and deployment process of the same application used in Part I by using Jenkins on AWS EC2, integrated with GitHub webhook triggers.
 
-Achieved outcomes:
+Completed objectives:
 - Jenkins installed and configured on EC2.
-- GitHub repository integrated with Jenkins.
-- Webhook-based trigger configured.
-- Jenkins pipeline created using Git, Pipeline, and Docker Pipeline plugins.
-- Build phase executed in a containerized environment using Docker.
-- Docker Compose reused with requested changes:
-  - code is mounted through a volume
-  - different ports and container names are used
+- GitHub repository integrated with Jenkins pipeline job.
+- Push events trigger pipeline automatically (webhook + Poll SCM fallback).
+- Build phase runs in containerized environment using Docker.
+- Reused compose setup with required assignment constraints:
+  - code mounted via volumes
+  - different ports and container names for Part II
 
-## 2. Repository Used
+---
 
-GitHub repository for Part II:
-- https://github.com/Mubashir3344/assignment-2.git
+## 2. Repository and Infrastructure
 
-## 3. Jenkins Setup on EC2 (Micro Steps)
+- GitHub repo: `https://github.com/Mubashir3344/assignment-2.git`
+- EC2 public IP used: `3.101.109.184`
+- Jenkins UI: `http://3.101.109.184:8081`
+- Part I runtime: `3000` (web), `3001` (api)
+- Part II runtime: `4000` (web), `4001` (api), `3308` (db)
 
-1. SSH into EC2 instance.
-2. Install Docker Engine and Docker Compose plugin.
-3. Add ubuntu user to docker group.
-4. Start Jenkins via Docker Compose (`docker-compose.jenkins.yml`).
-5. Open Jenkins at `http://<EC2_PUBLIC_IP>:8081`.
-6. Unlock Jenkins using initial admin password.
-7. Install required plugins:
-- Git plugin
-- Pipeline plugin
-- Docker Pipeline plugin
-8. Create admin user and finish setup.
+---
 
-## 4. GitHub Integration (Micro Steps)
+## 3. Final Part II Architecture
 
-1. Push project code to `assignment-2` repository.
-2. In Jenkins, create a Pipeline job.
-3. Configure SCM to Git and set repository URL.
-4. Set script path to `Jenkinsfile`.
-5. In GitHub repository settings, add webhook:
-- Payload URL: `http://<EC2_PUBLIC_IP>:8081/github-webhook/`
-- Content type: `application/json`
-- Events: push events
-6. Enable build trigger in Jenkins job (`GitHub hook trigger for GITScm polling`).
+Part II uses two compose files:
 
-## 5. Pipeline Design
+1. `docker-compose.jenkins.yml`
+- Runs Jenkins and build helper services.
+- Mounts host project path into containers as `/workspace`.
+- Uses Docker socket mount for Jenkins pipeline Docker commands.
 
-Pipeline stages implemented in `Jenkinsfile`:
-1. Checkout source code from GitHub.
-2. Containerized build using `docker-compose.jenkins.yml` with code volume mounted.
-3. Build Docker images for API and web.
-4. Tag images with build number and `latest`.
-5. Cleanup compose services and temporary docker artifacts.
+2. `docker-compose-part2.yml`
+- Runs deployment stack for Part II only.
+- Services:
+  - `singitronic-db-part2`
+  - `singitronic-api-part2`
+  - `singitronic-web-part2`
+- Uses code volume mounts and different ports from Part I.
 
-## 6. Required File Artifacts
+This satisfies assignment requirement for reusing compose with modified ports/container names and code-volume workflow.
 
-## 6.1 Jenkinsfile
+---
 
-```groovy
-pipeline {
-  agent any
+## 4. Jenkins Pipeline Flow (Final)
 
-  environment {
-    REPO_URL = 'https://github.com/Mubashir3344/assignment-2.git'
-    COMPOSE_FILE = 'docker-compose.jenkins.yml'
-    API_IMAGE = 'mubashirhassan/assignment2-api'
-    WEB_IMAGE = 'mubashirhassan/assignment2-web'
-  }
+Pipeline stages in final `Jenkinsfile`:
 
-  options {
-    timestamps()
-    disableConcurrentBuilds()
-  }
+1. Checkout
+- Pull latest code from GitHub `main`.
 
-  stages {
-    stage('Checkout') {
-      steps {
-        git branch: 'main', url: "${REPO_URL}"
-      }
-    }
+2. Prepare Docker CLI
+- Ensures `docker` and `docker-compose` exist in Jenkins runtime.
 
-    stage('Containerized Build (Code Volume)') {
-      steps {
-        sh 'docker compose -f ${COMPOSE_FILE} run --rm web_builder sh -lc "npm ci && npm run build"'
-        sh 'docker compose -f ${COMPOSE_FILE} run --rm api_builder sh -lc "cd server && npm ci && npx prisma generate"'
-      }
-    }
+3. Containerized Build (Code Volume)
+- Uses `web_builder` container to run:
+  - dependency install
+  - `next build`
+- Uses `api_builder` container to run:
+  - dependency install
+  - `prisma generate`
 
-    stage('Docker Image Build') {
-      steps {
-        script {
-          docker.build("${API_IMAGE}:${BUILD_NUMBER}", '-f server/Dockerfile ./server')
-          docker.build("${WEB_IMAGE}:${BUILD_NUMBER}", '-f Dockerfile .')
-        }
-      }
-    }
+4. Deploy Part II (Ports 4000/4001)
+- Stops previous Part II stack.
+- Starts new Part II stack.
+- Waits briefly and verifies API/Web containers are running.
+- Prints final deployment URLs.
 
-    stage('Tag Latest') {
-      steps {
-        sh 'docker tag ${API_IMAGE}:${BUILD_NUMBER} ${API_IMAGE}:latest'
-        sh 'docker tag ${WEB_IMAGE}:${BUILD_NUMBER} ${WEB_IMAGE}:latest'
-      }
-    }
-  }
+5. Post cleanup
+- Stops/removes temporary builder/db_ci services only.
+- Does not stop Jenkins itself.
 
-  post {
-    always {
-      sh 'docker compose -f ${COMPOSE_FILE} down -v || true'
-      sh 'docker image prune -f || true'
-    }
-    success {
-      echo 'Build pipeline completed successfully.'
-    }
-    failure {
-      echo 'Build pipeline failed. Check stage logs.'
-    }
-  }
-}
+---
+
+## 5. Trigger Strategy
+
+Auto-trigger configuration:
+- `githubPush()` in Jenkinsfile
+- `pollSCM('H/2 * * * *')` fallback in Jenkinsfile
+- GitHub webhook configured to:
+  - `http://3.101.109.184:8081/github-webhook/`
+  - push events only
+
+This ensures pipeline starts automatically on push and still works if webhook delivery is delayed.
+
+---
+
+## 6. Main Issues Faced and Final Fixes
+
+1. `docker: not found` in Jenkins pipeline
+- Cause: Jenkins runtime lacked Docker CLI.
+- Fix: Added `Prepare Docker CLI` stage to install `docker.io` and `docker-compose`.
+
+2. Webhook delivered but build status inconsistent
+- Cause: readiness check used endpoints not always reachable from Jenkins container context.
+- Fix: simplified deployment verification to container running-state checks.
+
+3. `No space left on device (ENOSPC)`
+- Cause: repeated runtime installs and volume churn.
+- Fix: cleaned Docker resources and removed unnecessary repeated runtime install behavior.
+
+4. API startup `Merchant table does not exist`
+- Cause: no migration files in project, so `migrate deploy` had nothing to apply.
+- Fix: switched startup schema step to `prisma db push` for Part II runtime.
+
+5. Web startup `Could not find production build in .next`
+- Cause: startup/build ordering and stale container state in earlier revisions.
+- Fix: ensured build step happens in CI flow and web container starts correctly on Part II stack.
+
+---
+
+## 7. Final EC2 Operational Commands
+
+## 7.1 Keep Part II down initially (as required)
+
+```bash
+cd ~/assignment-2
+docker compose -f docker-compose-part2.yml down
 ```
 
-## 6.2 docker-compose.jenkins.yml
+## 7.2 Jenkins remains up
 
-```yaml
-services:
-  jenkins_ci:
-    image: jenkins/jenkins:lts-jdk17
-    container_name: jenkins-ci-server
-    user: root
-    restart: unless-stopped
-    ports:
-      - "8081:8080"
-      - "50001:50000"
-    volumes:
-      - jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./:/workspace
-    working_dir: /workspace
-
-  web_builder:
-    image: node:20-alpine
-    container_name: singitronic-web-build
-    working_dir: /workspace
-    volumes:
-      - ./:/workspace
-    command: sh -lc "npm ci && npm run build"
-
-  api_builder:
-    image: node:20-alpine
-    container_name: singitronic-api-build
-    working_dir: /workspace
-    volumes:
-      - ./:/workspace
-    command: sh -lc "cd server && npm ci && npx prisma generate"
-
-  db_ci:
-    image: mysql:8.4
-    container_name: singitronic-db-ci
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: root_local_2026
-      MYSQL_DATABASE: singitronic_nextjs_ci
-      MYSQL_USER: singitronic_user
-      MYSQL_PASSWORD: singitronic_local_2026
-    ports:
-      - "3307:3306"
-    volumes:
-      - mysql_ci_data:/var/lib/mysql
-
-volumes:
-  jenkins_home:
-  mysql_ci_data:
+```bash
+docker compose -f docker-compose.jenkins.yml up -d jenkins_ci
+docker compose -f docker-compose.jenkins.yml ps
 ```
 
-## 7. Screenshots to Include in Submission
+## 7.3 Verify trigger (after pushing a commit)
 
-1. Jenkins running on EC2 (`http://<IP>:8081`).
-2. Installed Jenkins plugins page (Git, Pipeline, Docker Pipeline).
-3. Pipeline job configuration with GitHub repo URL.
-4. GitHub webhook configuration page.
-5. Successful pipeline run console output.
-6. Docker images built/tagged after pipeline run.
-7. Running Jenkins compose services (`docker compose -f docker-compose.jenkins.yml ps`).
+```bash
+docker logs --tail=200 jenkins-ci-server
+```
 
-## 8. Conclusion
+## 7.4 Check Part II after trigger
 
-Part II requirements were completed by integrating Jenkins, GitHub webhook, and Docker-based build automation on EC2. The build pipeline runs in a containerized environment and reuses Docker Compose with code volume mounting, different ports, and different container names.
+```bash
+docker compose -f docker-compose-part2.yml ps
+curl http://localhost:4001/health
+curl -I http://localhost:4000
+```
+
+---
+
+## 8. Required Artifact Files (Part II)
+
+- `Jenkinsfile`
+- `docker-compose.jenkins.yml`
+- `docker-compose-part2.yml`
+
+These three files represent the final Part II implementation.
+
+---
+
+## 9. Screenshots Checklist for Submission
+
+1. Jenkins dashboard on EC2 (`:8081`).
+2. Jenkins job configuration (SCM + triggers).
+3. GitHub webhook configuration and successful delivery.
+4. Pipeline console showing full successful run.
+5. `docker compose -f docker-compose-part2.yml ps` showing Part II services.
+6. Browser showing app on `http://3.101.109.184:4000`.
+7. API health output on port `4001`.
+8. Proof that Part II is initially down and then up after push.
+
+---
+
+## 10. Conclusion
+
+Part II is fully implemented with Jenkins-based CI/CD automation for the same application used in Part I. The final setup supports automatic push-triggered build/deploy behavior, uses containerized build steps, and deploys Part II on separate ports and container names exactly as required by the assignment.
