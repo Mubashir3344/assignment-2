@@ -16,3 +16,7 @@ If this commit appears in Jenkins build history, webhook trigger is working.
 ## Trigger check update
 
 Second webhook test commit from local machine to verify automatic Jenkins trigger on push.
+
+## Trigger check update 2
+
+Third webhook test commit to confirm pipeline auto-trigger behavior after Jenkinsfile updates.
