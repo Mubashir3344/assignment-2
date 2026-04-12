@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  db-part2:
+    image: mysql:8.4
+    container_name: singitronic-db-part2
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_local_2026
+      MYSQL_DATABASE: singitronic_nextjs
+      MYSQL_USER: singitronic_user
+      MYSQL_PASSWORD: singitronic_local_2026
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_data_part2:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-usingitronic_user", "-psingitronic_local_2026"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api-part2:
+    image: ${DOCKERHUB_USERNAME:-mubashirhassan}/singitronic-api:latest
+    container_name: singitronic-api-part2
+    restart: unless-stopped
+    depends_on:
+      db-part2:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      DATABASE_URL: mysql://singitronic_user:singitronic_local_2026@db-part2:3306/singitronic_nextjs?sslmode=disabled
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:4000}
+      FRONTEND_URL: ${NEXTAUTH_URL:-http://localhost:4000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-this-production-secret}
+    ports:
+      - "4001:3001"
+    volumes:
+      - ./server:/app/server
+      - /app/server/node_modules
+
+  web-part2:
+    image: ${DOCKERHUB_USERNAME:-mubashirhassan}/singitronic-web:latest
+    container_name: singitronic-web-part2
+    restart: unless-stopped
+    depends_on:
+      - api-part2
+    environment:
+      NODE_ENV: production
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:4000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-this-production-secret}
+      INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://api-part2:3001}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:4001}
+      DATABASE_URL: mysql://singitronic_user:singitronic_local_2026@db-part2:3306/singitronic_nextjs?sslmode=disabled
+    ports:
+      - "4000:3000"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+      - /app/.next
+
+volumes:
+  mysql_data_part2:

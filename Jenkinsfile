@@ -42,6 +42,33 @@ pipeline {
         sh 'docker tag ${WEB_IMAGE}:${BUILD_NUMBER} ${WEB_IMAGE}:latest'
       }
     }
+
+    stage('Deploy Part II (Ports 4000-4001)') {
+      steps {
+        sh '''
+          echo "Stopping previous Part II deployment..."
+          docker compose -f docker-compose-part2.yml down -v || true
+          
+          echo "Starting Part II services on ports 4000 (web) and 4001 (api)..."
+          export DOCKERHUB_USERNAME=mubashirhassan
+          export NEXTAUTH_SECRET=jenkins-part2-secret-2026
+          export NEXT_PUBLIC_API_BASE_URL=http://3.101.109.184:4001
+          export INTERNAL_API_BASE_URL=http://api-part2:3001
+          
+          docker compose -f docker-compose-part2.yml up -d
+          
+          echo "Waiting for services to be ready..."
+          sleep 10
+          
+          echo "Part II Deployment Status:"
+          docker compose -f docker-compose-part2.yml ps
+          
+          echo "Part II Application URLs:"
+          echo "Web App: http://3.101.109.184:4000"
+          echo "API: http://3.101.109.184:4001"
+        '''
+      }
+    }
   }
 
   post {
@@ -50,10 +77,13 @@ pipeline {
       sh 'docker image prune -f || true'
     }
     success {
-      echo 'Build pipeline completed successfully.'
+      echo 'Build and deployment pipeline completed successfully.'
+      echo 'Part II is now running on:'
+      echo '  Web: http://3.101.109.184:4000'
+      echo '  API: http://3.101.109.184:4001'
     }
     failure {
-      echo 'Build pipeline failed. Check stage logs.'
+      echo 'Build/deployment pipeline failed. Check stage logs.'
     }
   }
 }
