@@ -41,7 +41,7 @@ pipeline {
         sh '''
           export HOST_WORKSPACE_PATH=/home/ubuntu/assignment-2
           echo "Stopping previous Part II deployment..."
-          docker compose -f docker-compose-part2.yml down -v || true
+          docker compose -f docker-compose-part2.yml down || true
           
           echo "Starting Part II services on ports 4000 (web) and 4001 (api)..."
           export NEXTAUTH_SECRET=jenkins-part2-secret-2026
