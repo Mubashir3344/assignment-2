@@ -26,9 +26,11 @@ pipeline {
     stage('Containerized Build (Code Volume)') {
       steps {
         sh '''
+          export HOST_WORKSPACE_PATH=/home/ubuntu/assignment-2
           docker compose -f ${COMPOSE_FILE} run --rm web_builder sh -lc 'if [ -f package-lock.json ]; then npm ci; else npm install; fi && npm run build'
         '''
         sh '''
+          export HOST_WORKSPACE_PATH=/home/ubuntu/assignment-2
           docker compose -f ${COMPOSE_FILE} run --rm api_builder sh -lc 'cd server && if [ -f package-lock.json ]; then npm ci; else npm install; fi && npx prisma generate'
         '''
       }
@@ -37,6 +39,7 @@ pipeline {
     stage('Deploy Part II (Ports 4000-4001)') {
       steps {
         sh '''
+          export HOST_WORKSPACE_PATH=/home/ubuntu/assignment-2
           echo "Stopping previous Part II deployment..."
           docker compose -f docker-compose-part2.yml down -v || true
           

@@ -38,7 +38,7 @@ services:
     ports:
       - "4001:3001"
     volumes:
-      - ./server:/workspace/server
+      - ${HOST_WORKSPACE_PATH:-.}/server:/workspace/server
       - /workspace/server/node_modules
 
   web-part2:
@@ -59,7 +59,7 @@ services:
     ports:
       - "4000:3000"
     volumes:
-      - ./:/workspace
+      - ${HOST_WORKSPACE_PATH:-.}:/workspace
       - /workspace/node_modules
       - /workspace/.next
 

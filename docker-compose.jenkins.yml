@@ -10,7 +10,7 @@ services:
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./:/workspace
+      - ${HOST_WORKSPACE_PATH:-.}:/workspace
     working_dir: /workspace
 
   web_builder:
@@ -18,7 +18,7 @@ services:
     container_name: singitronic-web-build
     working_dir: /workspace
     volumes:
-      - ./:/workspace
+      - ${HOST_WORKSPACE_PATH:-.}:/workspace
     command: sh -lc "npm ci && npm run build"
 
   api_builder:
@@ -26,7 +26,7 @@ services:
     container_name: singitronic-api-build
     working_dir: /workspace
     volumes:
-      - ./:/workspace
+      - ${HOST_WORKSPACE_PATH:-.}:/workspace
     command: sh -lc "cd server && npm ci && npx prisma generate"
 
   db_ci:
