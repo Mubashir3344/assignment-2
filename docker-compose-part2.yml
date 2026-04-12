@@ -55,13 +55,12 @@ services:
       INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://api-part2:3001}
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:4001}
       DATABASE_URL: mysql://singitronic_user:singitronic_local_2026@db-part2:3306/singitronic_nextjs?sslmode=disabled
-    command: sh -lc "npm ci && npm run build && npm run start"
+    command: sh -lc "if [ -f package-lock.json ]; then npm ci; else npm install; fi && npm run start -- -H 0.0.0.0 -p 3000"
     ports:
       - "4000:3000"
     volumes:
       - ${HOST_WORKSPACE_PATH:-.}:/workspace
       - /workspace/node_modules
-      - /workspace/.next
 
 volumes:
   mysql_data_part2:
