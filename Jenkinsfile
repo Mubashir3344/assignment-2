@@ -59,7 +59,10 @@ pipeline {
 
   post {
     always {
-      sh 'docker compose -f ${COMPOSE_FILE} down -v || true'
+      sh '''
+        docker compose -f ${COMPOSE_FILE} stop web_builder api_builder db_ci || true
+        docker compose -f ${COMPOSE_FILE} rm -f web_builder api_builder db_ci || true
+      '''
     }
     success {
       echo 'Build and deployment pipeline completed successfully.'
