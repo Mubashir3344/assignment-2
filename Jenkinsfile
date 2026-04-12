@@ -25,8 +25,12 @@ pipeline {
 
     stage('Containerized Build (Code Volume)') {
       steps {
-        sh 'docker compose -f ${COMPOSE_FILE} run --rm web_builder sh -lc "npm ci && npm run build"'
-        sh 'docker compose -f ${COMPOSE_FILE} run --rm api_builder sh -lc "cd server && npm ci && npx prisma generate"'
+        sh '''
+          docker compose -f ${COMPOSE_FILE} run --rm web_builder sh -lc 'if [ -f package-lock.json ]; then npm ci; else npm install; fi && npm run build'
+        '''
+        sh '''
+          docker compose -f ${COMPOSE_FILE} run --rm api_builder sh -lc 'cd server && if [ -f package-lock.json ]; then npm ci; else npm install; fi && npx prisma generate'
+        '''
       }
     }
 
