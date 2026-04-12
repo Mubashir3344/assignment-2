@@ -1,11 +1,14 @@
 pipeline {
   agent any
 
+  triggers {
+    githubPush()
+    pollSCM('H/2 * * * *')
+  }
+
   environment {
     REPO_URL = 'https://github.com/Mubashir3344/assignment-2.git'
     COMPOSE_FILE = 'docker-compose.jenkins.yml'
-    API_IMAGE = 'mubashirhassan/assignment2-api'
-    WEB_IMAGE = 'mubashirhassan/assignment2-web'
   }
 
   options {
@@ -27,22 +30,6 @@ pipeline {
       }
     }
 
-    stage('Docker Image Build') {
-      steps {
-        script {
-          docker.build("${API_IMAGE}:${BUILD_NUMBER}", '-f server/Dockerfile ./server')
-          docker.build("${WEB_IMAGE}:${BUILD_NUMBER}", '-f Dockerfile .')
-        }
-      }
-    }
-
-    stage('Tag Latest') {
-      steps {
-        sh 'docker tag ${API_IMAGE}:${BUILD_NUMBER} ${API_IMAGE}:latest'
-        sh 'docker tag ${WEB_IMAGE}:${BUILD_NUMBER} ${WEB_IMAGE}:latest'
-      }
-    }
-
     stage('Deploy Part II (Ports 4000-4001)') {
       steps {
         sh '''
@@ -50,7 +37,6 @@ pipeline {
           docker compose -f docker-compose-part2.yml down -v || true
           
           echo "Starting Part II services on ports 4000 (web) and 4001 (api)..."
-          export DOCKERHUB_USERNAME=mubashirhassan
           export NEXTAUTH_SECRET=jenkins-part2-secret-2026
           export NEXT_PUBLIC_API_BASE_URL=http://3.101.109.184:4001
           export INTERNAL_API_BASE_URL=http://api-part2:3001
@@ -74,7 +60,6 @@ pipeline {
   post {
     always {
       sh 'docker compose -f ${COMPOSE_FILE} down -v || true'
-      sh 'docker image prune -f || true'
     }
     success {
       echo 'Build and deployment pipeline completed successfully.'
