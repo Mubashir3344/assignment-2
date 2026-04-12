@@ -34,9 +34,14 @@ services:
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:4000}
       FRONTEND_URL: ${NEXTAUTH_URL:-http://localhost:4000}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-this-production-secret}
-    command: sh -lc "npm ci && npx prisma generate && npx prisma migrate deploy && if [ \"$SEED_DEMO_DATA\" = \"true\" ]; then node utills/insertDemoData.js; fi && node app.js"
+    command: sh -lc "if [ -f package-lock.json ]; then npm ci; else npm install; fi && npx prisma generate && npx prisma migrate deploy && if [ \"$SEED_DEMO_DATA\" = \"true\" ]; then node utills/insertDemoData.js; fi && node app.js"
     ports:
       - "4001:3001"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
     volumes:
       - ${HOST_WORKSPACE_PATH:-.}/server:/workspace/server
       - /workspace/server/node_modules
@@ -55,9 +60,14 @@ services:
       INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://api-part2:3001}
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:4001}
       DATABASE_URL: mysql://singitronic_user:singitronic_local_2026@db-part2:3306/singitronic_nextjs?sslmode=disabled
-    command: sh -lc "if [ -f package-lock.json ]; then npm ci; else npm install; fi && npm run start -- -H 0.0.0.0 -p 3000"
+    command: sh -lc "if [ -f package-lock.json ]; then npm ci; else npm install; fi && npm run build && npm run start -- -H 0.0.0.0 -p 3000"
     ports:
       - "4000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
+      interval: 20s
+      timeout: 5s
+      retries: 12
     volumes:
       - ${HOST_WORKSPACE_PATH:-.}:/workspace
       - /workspace/node_modules
