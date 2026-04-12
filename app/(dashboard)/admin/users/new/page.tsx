@@ -41,7 +41,7 @@ const DashboardCreateNewUser = () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(sanitizedUserInput),
         };
-        ap(`/api/users`, requestOptions)
+        fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"}/api/users`, requestOptions)
           .then((response) => {
             if(response.status === 201){
               return response.json();

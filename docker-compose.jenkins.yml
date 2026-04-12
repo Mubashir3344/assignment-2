@@ -1,0 +1,48 @@
+services:
+  jenkins_ci:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: jenkins-ci-server
+    user: root
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+      - "50001:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/workspace
+    working_dir: /workspace
+
+  web_builder:
+    image: node:20-alpine
+    container_name: singitronic-web-build
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    command: sh -lc "npm ci && npm run build"
+
+  api_builder:
+    image: node:20-alpine
+    container_name: singitronic-api-build
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    command: sh -lc "cd server && npm ci && npx prisma generate"
+
+  db_ci:
+    image: mysql:8.4
+    container_name: singitronic-db-ci
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_local_2026
+      MYSQL_DATABASE: singitronic_nextjs_ci
+      MYSQL_USER: singitronic_user
+      MYSQL_PASSWORD: singitronic_local_2026
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_ci_data:/var/lib/mysql
+
+volumes:
+  jenkins_home:
+  mysql_ci_data:
