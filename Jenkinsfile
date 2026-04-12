@@ -27,7 +27,7 @@ pipeline {
       steps {
         sh '''
           export HOST_WORKSPACE_PATH=/home/ubuntu/assignment-2
-          docker compose -f ${COMPOSE_FILE} run --rm web_builder sh -lc 'if [ -f package-lock.json ]; then npm ci; else npm install; fi && npm run build'
+          docker compose -f ${COMPOSE_FILE} run --rm web_builder sh -lc 'export DATABASE_URL="mysql://singitronic_user:singitronic_local_2026@db_ci:3306/singitronic_nextjs_ci?sslmode=disabled" NEXTAUTH_SECRET="jenkins-part2-secret-2026" NEXTAUTH_URL="http://localhost:4000" NEXT_PUBLIC_API_BASE_URL="http://localhost:4001" INTERNAL_API_BASE_URL="http://api-part2:3001"; if [ -f package-lock.json ]; then npm ci; else npm install; fi && npm run build'
         '''
         sh '''
           export HOST_WORKSPACE_PATH=/home/ubuntu/assignment-2
