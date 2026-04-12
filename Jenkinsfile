@@ -70,7 +70,7 @@ pipeline {
           echo "Waiting for services to be healthy..."
           API_READY=0
           WEB_READY=0
-          for i in $(seq 1 60); do
+          for i in $(seq 1 24); do
             if curl -fsS http://localhost:4001/health >/dev/null 2>&1; then
               API_READY=1
             fi
@@ -81,7 +81,7 @@ pipeline {
               echo "Part II services are reachable."
               break
             fi
-            echo "Readiness attempt $i/60 -> api: $API_READY, web: $WEB_READY"
+            echo "Readiness attempt $i/24 -> api: $API_READY, web: $WEB_READY"
             sleep 5
           done
 
