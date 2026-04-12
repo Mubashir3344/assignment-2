@@ -12,3 +12,7 @@ This file exists only to test GitHub webhook-triggered Jenkins builds for Part I
 ## Test note
 
 If this commit appears in Jenkins build history, webhook trigger is working.
+
+## Trigger check update
+
+Second webhook test commit from local machine to verify automatic Jenkins trigger on push.
