@@ -23,6 +23,19 @@ pipeline {
       }
     }
 
+    stage('Prepare Docker CLI') {
+      steps {
+        sh '''
+          if ! command -v docker >/dev/null 2>&1; then
+            apt-get update
+            apt-get install -y docker.io docker-compose-plugin
+          fi
+          docker --version
+          docker compose version
+        '''
+      }
+    }
+
     stage('Containerized Build (Code Volume)') {
       steps {
         sh '''
