@@ -24,3 +24,7 @@ Third webhook test commit to confirm pipeline auto-trigger behavior after Jenkin
 ## Trigger check update 3
 
 Final markdown-only change to verify Jenkins webhook and pipeline trigger after bringing Part II down.
+
+## Trigger check update 4
+
+Post-fix trigger commit to validate Jenkins can run docker compose commands.
