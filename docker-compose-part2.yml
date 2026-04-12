@@ -44,7 +44,6 @@ services:
       retries: 10
     volumes:
       - ${HOST_WORKSPACE_PATH:-.}/server:/workspace/server
-      - /workspace/server/node_modules
 
   web-part2:
     image: node:20-alpine
@@ -70,7 +69,6 @@ services:
       retries: 12
     volumes:
       - ${HOST_WORKSPACE_PATH:-.}:/workspace
-      - /workspace/node_modules
 
 volumes:
   mysql_data_part2:
