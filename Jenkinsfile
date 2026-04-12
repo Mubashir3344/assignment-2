@@ -68,23 +68,26 @@ pipeline {
           docker-compose -f docker-compose-part2.yml up -d
           
           echo "Waiting for services to be healthy..."
-          for i in $(seq 1 30); do
-            API_STATUS=$(docker inspect --format='{{json .State.Health.Status}}' singitronic-api-part2 2>/dev/null || echo '"starting"')
-            WEB_STATUS=$(docker inspect --format='{{json .State.Health.Status}}' singitronic-web-part2 2>/dev/null || echo '"starting"')
-            if [ "$API_STATUS" = '"healthy"' ] && [ "$WEB_STATUS" = '"healthy"' ]; then
-              echo "Part II services are healthy."
+          API_READY=0
+          WEB_READY=0
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:4001/health >/dev/null 2>&1; then
+              API_READY=1
+            fi
+            if curl -fsS http://localhost:4000 >/dev/null 2>&1; then
+              WEB_READY=1
+            fi
+            if [ "$API_READY" -eq 1 ] && [ "$WEB_READY" -eq 1 ]; then
+              echo "Part II services are reachable."
               break
             fi
-            echo "Health check attempt $i/30 -> api: $API_STATUS, web: $WEB_STATUS"
+            echo "Readiness attempt $i/60 -> api: $API_READY, web: $WEB_READY"
             sleep 5
           done
 
-          docker-compose -f docker-compose-part2.yml ps
-
-          API_FINAL=$(docker inspect --format='{{json .State.Health.Status}}' singitronic-api-part2 2>/dev/null || echo '"unknown"')
-          WEB_FINAL=$(docker inspect --format='{{json .State.Health.Status}}' singitronic-web-part2 2>/dev/null || echo '"unknown"')
-          if [ "$API_FINAL" != '"healthy"' ] || [ "$WEB_FINAL" != '"healthy"' ]; then
-            echo "Part II services did not become healthy in time."
+          if [ "$API_READY" -ne 1 ] || [ "$WEB_READY" -ne 1 ]; then
+            echo "Part II services did not become reachable in time."
+            docker-compose -f docker-compose-part2.yml ps || true
             docker-compose -f docker-compose-part2.yml logs --tail=120 api-part2 web-part2 || true
             exit 1
           fi
