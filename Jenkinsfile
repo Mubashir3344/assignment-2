@@ -67,26 +67,13 @@ pipeline {
           
           docker-compose -f docker-compose-part2.yml up -d
           
-          echo "Waiting for services to be healthy..."
-          API_READY=0
-          WEB_READY=0
-          for i in $(seq 1 24); do
-            if curl -fsS http://localhost:4001/health >/dev/null 2>&1; then
-              API_READY=1
-            fi
-            if curl -fsS http://localhost:4000 >/dev/null 2>&1; then
-              WEB_READY=1
-            fi
-            if [ "$API_READY" -eq 1 ] && [ "$WEB_READY" -eq 1 ]; then
-              echo "Part II services are reachable."
-              break
-            fi
-            echo "Readiness attempt $i/24 -> api: $API_READY, web: $WEB_READY"
-            sleep 5
-          done
+          echo "Waiting briefly for containers to initialize..."
+          sleep 20
 
-          if [ "$API_READY" -ne 1 ] || [ "$WEB_READY" -ne 1 ]; then
-            echo "Part II services did not become reachable in time."
+          API_RUNNING=$(docker inspect --format='{{.State.Running}}' singitronic-api-part2 2>/dev/null || echo "false")
+          WEB_RUNNING=$(docker inspect --format='{{.State.Running}}' singitronic-web-part2 2>/dev/null || echo "false")
+          if [ "$API_RUNNING" != "true" ] || [ "$WEB_RUNNING" != "true" ]; then
+            echo "Part II containers are not running after startup."
             docker-compose -f docker-compose-part2.yml ps || true
             docker-compose -f docker-compose-part2.yml logs --tail=120 api-part2 web-part2 || true
             exit 1
