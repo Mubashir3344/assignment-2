@@ -103,14 +103,7 @@ pipeline {
       post {
         always {
           junit allowEmptyResults: true, testResults: 'test-results/results.xml'
-          publishHTML([
-            allowMissing: true,
-            alwaysLinkToLastBuild: true,
-            keepAll: true,
-            reportDir: 'test-results',
-            reportFiles: 'report.html',
-            reportName: 'Selenium Test Report'
-          ])
+          archiveArtifacts artifacts: 'test-results/report.html', allowEmptyArchive: true
         }
       }
     }
