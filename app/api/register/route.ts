@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { registrationSchema } from "@/utils/schema";
 import { sanitizeInput, commonValidations } from "@/utils/validation";
 import { handleApiError, AppError } from "@/utils/errorHandler";
-
+ 
 export const POST = async (request: Request) => {
   try {
     // Get client IP for rate limiting
