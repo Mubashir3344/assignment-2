@@ -1,3 +1,4 @@
+cat > Jenkinsfile << 'EOF'
 pipeline {
   agent any
 
@@ -39,6 +40,7 @@ pipeline {
       steps {
         sh '''
           echo "Starting CI build..."
+
           docker compose -f ${COMPOSE_FILE} run --rm \
             -e DATABASE_URL="mysql://singitronic_user:singitronic_local_2026@db_ci:3306/singitronic_nextjs_ci" \
             -e NEXTAUTH_SECRET="jenkins-part2-secret-2026" \
@@ -46,6 +48,7 @@ pipeline {
             -e NEXT_PUBLIC_API_BASE_URL="http://localhost:4001" \
             -e INTERNAL_API_BASE_URL="http://api-part2:3001" \
             web_builder
+
           docker compose -f ${COMPOSE_FILE} run --rm api_builder
         '''
       }
@@ -86,7 +89,7 @@ pipeline {
           git clone ${TEST_REPO_URL} selenium-tests
 
           echo "=== Building Selenium test Docker image ==="
-          docker build -t singitronic-selenium-tests:latest selenium-tests/
+          docker build --no-cache -t singitronic-selenium-tests:latest selenium-tests/
 
           echo "=== Running Selenium tests ==="
           mkdir -p test-results
@@ -94,10 +97,12 @@ pipeline {
             --network host \
             -e APP_URL=${APP_URL} \
             -v ${WORKSPACE}/test-results:/app/test-results \
-            singitronic-selenium-tests:latest || true
+            singitronic-selenium-tests:latest
+          EXIT_CODE=$?
 
-          echo "=== Tests completed ==="
-          ls -la test-results/ || echo "No test-results directory"
+          echo "=== Docker exit code: ${EXIT_CODE} ==="
+          echo "=== Contents of test-results: ==="
+          ls -la test-results/ || echo "test-results directory is empty or missing"
         '''
       }
       post {
@@ -135,10 +140,9 @@ pipeline {
   <tr><td><b>Build</b></td><td>#${BUILD_NUMBER}</td></tr>
   <tr><td><b>Triggered by</b></td><td>${committerEmail}</td></tr>
   <tr><td><b>Console</b></td><td><a href="${BUILD_URL}">${BUILD_URL}</a></td></tr>
-  <tr><td><b>Test Report</b></td><td><a href="${BUILD_URL}Selenium_20Test_20Report/">View HTML Report</a></td></tr>
   <tr><td><b>App URL</b></td><td><a href="${APP_URL}">${APP_URL}</a></td></tr>
 </table>
-<p>The full Selenium HTML test report is attached.</p>
+<p>The full Selenium HTML test report is attached to this email.</p>
 </body></html>
           """,
           mimeType: 'text/html',
@@ -166,7 +170,7 @@ pipeline {
   <tr><td><b>Triggered by</b></td><td>${committerEmail}</td></tr>
   <tr><td><b>Console</b></td><td><a href="${BUILD_URL}">${BUILD_URL}</a></td></tr>
 </table>
-<p>Check the console output for details. Test results (if generated) are attached.</p>
+<p>Check the console output for details.</p>
 </body></html>
           """,
           mimeType: 'text/html',
@@ -177,3 +181,4 @@ pipeline {
     }
   }
 }
+EOF
