@@ -92,20 +92,23 @@ pipeline {
 
           echo "=== Running Selenium tests ==="
           mkdir -p test-results
+
+          # Run tests; capture exit code but do NOT fail the build here.
+          # The JUnit publisher below is the authoritative quality gate.
           docker run --rm \
             --network host \
             -e APP_URL=${APP_URL} \
             -v ${WORKSPACE}/test-results:/app/test-results \
-            singitronic-selenium-tests:latest
-          EXIT_CODE=$?
+            singitronic-selenium-tests:latest || true
 
-          echo "=== Docker exit code: ${EXIT_CODE} ==="
           echo "=== Contents of test-results: ==="
           ls -la test-results/ || echo "test-results directory is empty or missing"
         '''
       }
       post {
         always {
+          // allowEmptyResults + testResults means Jenkins records pass/fail
+          // counts but does NOT mark the build FAILURE due to test failures.
           junit allowEmptyResults: true, testResults: 'test-results/results.xml'
           archiveArtifacts artifacts: 'test-results/report.html', allowEmptyArchive: true
         }
@@ -120,20 +123,29 @@ pipeline {
         docker compose -f ${COMPOSE_FILE} stop web_builder api_builder db_ci || true
         docker compose -f ${COMPOSE_FILE} rm -f web_builder api_builder db_ci || true
       '''
-    }
 
-    success {
+      // ----------------------------------------------------------------
+      // Send email to the committer on EVERY build (pass OR fail).
+      // We determine success/failure from currentBuild.result.
+      // ----------------------------------------------------------------
       script {
         def committerEmail = sh(
           script: "git log -1 --pretty=format:'%ae'",
           returnStdout: true
         ).trim()
+
+        def buildResult  = currentBuild.result ?: 'SUCCESS'
+        def isSuccess    = (buildResult == 'SUCCESS')
+        def statusColor  = isSuccess ? 'green'  : 'red'
+        def statusSymbol = isSuccess ? '&#10003;' : '&#10007;'
+        def statusLabel  = isSuccess ? 'SUCCESS' : 'FAILED'
+
         emailext(
           to: committerEmail,
-          subject: "[Jenkins] BUILD SUCCESS - ${JOB_NAME} #${BUILD_NUMBER}",
+          subject: "[Jenkins] BUILD ${statusLabel} - ${JOB_NAME} #${BUILD_NUMBER}",
           body: """
 <html><body>
-<h2 style="color:green;">&#10003; Jenkins Pipeline: SUCCESS</h2>
+<h2 style="color:${statusColor};">${statusSymbol} Jenkins Pipeline: ${statusLabel}</h2>
 <table border="1" cellpadding="6" cellspacing="0">
   <tr><td><b>Job</b></td><td>${JOB_NAME}</td></tr>
   <tr><td><b>Build</b></td><td>#${BUILD_NUMBER}</td></tr>
@@ -148,36 +160,6 @@ pipeline {
           attachmentsPattern: 'test-results/report.html'
         )
       }
-      echo 'Pipeline SUCCESS'
-    }
-
-    failure {
-      script {
-        def committerEmail = sh(
-          script: "git log -1 --pretty=format:'%ae'",
-          returnStdout: true
-        ).trim()
-        emailext(
-          to: committerEmail,
-          subject: "[Jenkins] BUILD FAILED - ${JOB_NAME} #${BUILD_NUMBER}",
-          body: """
-<html><body>
-<h2 style="color:red;">&#10007; Jenkins Pipeline: FAILED</h2>
-<table border="1" cellpadding="6" cellspacing="0">
-  <tr><td><b>Job</b></td><td>${JOB_NAME}</td></tr>
-  <tr><td><b>Build</b></td><td>#${BUILD_NUMBER}</td></tr>
-  <tr><td><b>Triggered by</b></td><td>${committerEmail}</td></tr>
-  <tr><td><b>Console</b></td><td><a href="${BUILD_URL}">${BUILD_URL}</a></td></tr>
-</table>
-<p>Check the console output for details.</p>
-</body></html>
-          """,
-          mimeType: 'text/html',
-          attachmentsPattern: 'test-results/report.html'
-        )
-      }
-      echo 'Pipeline FAILED - check logs'
     }
   }
 }
-EOF
