@@ -1,33 +1,55 @@
-FROM node:20-alpine AS deps
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
+pipeline {
+    agent any
 
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+    stages {
 
-ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
-ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
-ARG DATABASE_URL=mysql://singitronic_user:singitronic_local_2026@db:3306/singitronic_nextjs?sslmode=disabled
-ENV DATABASE_URL=${DATABASE_URL}
-ARG NEXTAUTH_SECRET=build-secret-placeholder
-ENV NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/Mubashir3344/assignment-2.git'
+            }
+        }
 
-RUN npm run build
+        stage('Check Docker') {
+            steps {
+                sh '''
+                    docker --version
+                    docker compose version
+                '''
+            }
+        }
 
-FROM node:20-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-ENV PORT=3000
+        stage('Containerized Build') {
+            steps {
+                sh '''
+                    docker compose -f docker-compose.jenkins.yml build
+                '''
+            }
+        }
 
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.mjs ./next.config.mjs
-COPY --from=builder /app/prisma ./prisma
+        stage('Deploy') {
+            steps {
+                sh '''
+                    docker compose -f docker-compose.jenkins.yml up -d
+                '''
+            }
+        }
+    }
 
-EXPOSE 3000
-CMD ["npm", "run", "start"]
+    post {
+        always {
+            sh '''
+                docker compose -f docker-compose.jenkins.yml stop || true
+                docker compose -f docker-compose.jenkins.yml rm -f || true
+            '''
+        }
+
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+
+        failure {
+            echo 'Build/deployment pipeline failed.'
+        }
+    }
+}
