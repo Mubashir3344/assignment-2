@@ -1,4 +1,5 @@
 services:
+
   db-part2:
     image: mysql:8.4
     container_name: singitronic-db-part2
@@ -31,8 +32,8 @@ services:
       PORT: 3001
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
       DATABASE_URL: mysql://singitronic_user:singitronic_local_2026@db-part2:3306/singitronic_nextjs?sslmode=disabled
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:4000}
-      FRONTEND_URL: ${NEXTAUTH_URL:-http://localhost:4000}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost}
+      FRONTEND_URL: ${NEXTAUTH_URL:-http://localhost}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-this-production-secret}
     command: sh -lc "npx prisma db push && npx prisma generate && if [ \"$SEED_DEMO_DATA\" = \"true\" ]; then node utills/insertDemoData.js; fi && node app.js"
     ports:
@@ -54,14 +55,16 @@ services:
       - api-part2
     environment:
       NODE_ENV: production
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:4000}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-this-production-secret}
       INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://api-part2:3001}
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:4001}
       DATABASE_URL: mysql://singitronic_user:singitronic_local_2026@db-part2:3306/singitronic_nextjs?sslmode=disabled
     command: sh -lc "npm run start -- -H 0.0.0.0 -p 3000"
+
     ports:
-      - "4000:3000"
+      - "80:3000"   # ✅ MAIN CHANGE (NORMAL IP ACCESS)
+
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
       interval: 20s
