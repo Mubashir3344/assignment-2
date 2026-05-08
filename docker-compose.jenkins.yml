@@ -1,14 +1,12 @@
 services:
+
   web_builder:
     image: node:20-alpine
     container_name: singitronic-web-build
     working_dir: /workspace
     volumes:
       - ./:/workspace
-    command: sh -lc "
-      npm ci &&
-      npm run build
-    "
+    command: sh -lc "npm ci && npm run build"
 
   api_builder:
     image: node:20-alpine
@@ -16,10 +14,7 @@ services:
     working_dir: /workspace/server
     volumes:
       - ./:/workspace
-    command: sh -lc "
-      npm ci &&
-      npx prisma generate
-    "
+    command: sh -lc "npm ci && npx prisma generate"
 
   db_ci:
     image: mysql:8.4
